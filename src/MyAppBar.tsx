@@ -1,7 +1,7 @@
 import * as React from "react";
 import { AppBar, Typography, Toolbar, IconButton } from "@mui/material";
 import { Menu as MenuIcon } from "@mui/icons-material";
-import { ReactNode } from "react";
+import type { ReactNode } from 'react';
 
 interface MyAppBarProps {
   children?: ReactNode;
