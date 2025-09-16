@@ -1,0 +1,14 @@
+{
+  "mcp_version": "0.1",
+  "connectors": [
+    {
+      "name": "supabase",
+      "provider": "supabase",
+      "project_id": "ucxjsrrggejajsxrxnov",
+      "config": {
+        "SUPABASE_URL": "https://ucxjsrrggejajsxrxnov.supabase.co",
+        "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjeGpzcnJnZ2VqYWpzeHJ4bm92Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0OTIzNDQ3NCwiZXhwIjoyMDY0ODEwNDc0fQ.-dA14G-VVDEw3kjvblRIKyNbLctqz4iTcLviah0cqgc"
+      }
+    }
+  ]
+}

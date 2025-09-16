@@ -87,10 +87,14 @@ const PainelEdicao = () => {
             notify('Alterações salvas com sucesso!', { type: 'success' });
             
         } catch (error: any) {
-            notify(`Erro ao salvar: ${error.message}`, { type: 'error' });
+            const errorMessage = error.message || 'Um erro inesperado ocorreu.';
+            notify(`Erro ao salvar: ${errorMessage}`, { type: 'error' });
+            // Retorna um objeto de erro formatado para o react-hook-form
+            return { FORM_ERROR: errorMessage };
         }
         
-        return data;
+        // Não é mais necessário retornar `data` aqui, pois o onSubmit do react-admin
+        // lida com o sucesso. O retorno só é crucial em caso de erro de submissão.
     };
 
     return (
