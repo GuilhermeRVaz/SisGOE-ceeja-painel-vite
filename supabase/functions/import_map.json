@@ -1,0 +1,5 @@
+{
+  "imports": {
+    "exceljs": "https://esm.sh/exceljs@4.3.0"
+  }
+}
