@@ -101,8 +101,9 @@ const PainelEdicao = () => {
     const notify = useNotify();
     const record = useRecordContext();
 
-    if (!studentData) {
-        return <div>Carregando dados do formulário...</div>;
+    // Renderiza o formulário apenas quando o registro do estudante (com seu ID) estiver totalmente carregado.
+    if (!studentData?.id) {
+        return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}><CircularProgress /></Box>;
     }
 
     const transform = async (data: any) => {

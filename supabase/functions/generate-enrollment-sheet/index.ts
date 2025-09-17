@@ -74,9 +74,7 @@ Deno.serve(async (req) => {
 
     // Carrega o template da planilha
     console.log("Tentando ler o arquivo de template...");
-    // No ambiente Supabase, o arquivo na mesma pasta é acessível diretamente.
-    // Usando a versão assíncrona para seguir as boas práticas.
-    const filePath = await Deno.readFile('./FICHA_DE_MATRÍCULA_2024.xlsx');
+    const filePath = await Deno.readFile('./template.xlsx');
     console.log(`Arquivo lido com sucesso. Tamanho: ${filePath.length} bytes.`);
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(filePath.buffer);
