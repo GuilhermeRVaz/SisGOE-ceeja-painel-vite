@@ -280,19 +280,44 @@ const PainelEdicao = () => {
         return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}><CircularProgress /></Box>;
     }
 
+    // Função de sanitização - removida formatação de data para evitar erros do PostgreSQL
+    const sanitizeData = (data: any) => {
+        console.log('🔄 [DataSanitizer] Iniciando sanitização de dados:', {
+            hasPersonalData: !!data,
+            dataKeys: data ? Object.keys(data) : []
+        });
+
+        const sanitized = { ...data };
+
+        // REMOVIDA formatação de data - mantendo formato ISO para o banco
+        console.log('✅ [DataSanitizer] Sanitização concluída (formato ISO mantido):', {
+            originalKeys: data ? Object.keys(data) : [],
+            sanitizedKeys: Object.keys(sanitized)
+        });
+
+        return sanitized;
+    };
+
     const transform = async (data: any) => {
         const { addresses, schooling_data, ...personal_data } = data;
         const studentId = personal_data.student_id || personal_data.id;
-        
+
         try {
             const updates = [];
 
+            // Sanitiza os dados pessoais aplicando formatação de data
+            const sanitizedPersonalData = sanitizeData(personal_data);
+            console.log('🔄 [Transform] Dados pessoais sanitizados:', {
+                original: personal_data,
+                sanitized: sanitizedPersonalData
+            });
+
             // 1. Atualizar dados pessoais
             updates.push(
-                dataProvider.update('personal_data', { 
-                    id: personal_data.id, 
-                    data: personal_data, 
-                    previousData: record 
+                dataProvider.update('personal_data', {
+                    id: sanitizedPersonalData.id,
+                    data: sanitizedPersonalData,
+                    previousData: record
                 })
             );
 

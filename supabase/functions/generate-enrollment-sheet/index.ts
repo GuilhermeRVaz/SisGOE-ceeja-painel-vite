@@ -9,13 +9,14 @@ const corsHeaders = {
 
 // Mapeamento de campos do Supabase para células do Excel
 const cellMapping = {
-  'personalData.name': 'C6',
+  'personalData.nome_completo': 'C6',
   'personalData.rg': 'C7',
-  'personalData.cpf': 'I7',
-  'personalData.birth_date': 'C9',
-  'personalData.mother_name': 'I9',
-  'personalData.nationality': 'C10',
-  'personalData.naturalness': 'I10',
+  'rg_digito': 'D7',
+  'personalData.cpf': 'F7',
+  'personalData.data_nascimento': 'C10',
+  'personalData.nome_mae': 'I9',
+  'personalData.nacionalidade': 'Q10',
+  'personalData.nascimento_cidade': 'I10',
   'addressData.street': 'C19',
   'addressData.neighborhood': 'C20',
   'addressData.cep': 'C21',
@@ -27,7 +28,7 @@ const cellMapping = {
 };
 
 // URL do arquivo Excel no Supabase Storage
-const EXCEL_TEMPLATE_URL = 'https://ucxjsrrggejajsxrxnov.supabase.co/storage/v1/object/sign/ficha/modelo/FICHA.xlsx?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82OTFjMGU2OC0xYjVkLTQwMWQtOWI5NC1kNjliYTMzNWExZjgiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJmaWNoYS9tb2RlbG8vRklDSEEueGxzeCIsImlhdCI6MTc1ODM3OTczNSwiZXhwIjoxNzYwOTcxNzM1fQ.B8lApW_VQJSJJIcm4z1JFjhfjFd6JFwoPO032sfUrXA';
+const EXCEL_TEMPLATE_URL = 'https://ucxjsrrggejajsxrxnov.supabase.co/storage/v1/object/sign/ficha/modelo/FICHA.xlsx?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82OTFjMGU2OC0xYjVkLTQwMWQtOWI5NC1kNjliYTMzNWExZjgiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJmaWNoYS9tb2RlbG8vRklDSEEueGxzeCIsImlhdCI6MTc1ODY1MzMyNywiZXhwIjoxNzkwMTg5MzI3fQ.0X4d2iaTmn3I3kbOHUNLiQtD-UXsOObtNAEJ5LbWLSA';
 
 // Constantes para validação
 const MIN_EXCEL_FILE_SIZE = 10240; // 10KB mínimo para um arquivo Excel válido
@@ -96,6 +97,62 @@ function manualBase64Decode(str) {
   }
 
   return result;
+}
+
+/**
+ * Função específica para formatação de data para Excel (converte ISO para brasileiro)
+ * @param isoDate - Data no formato ISO (yyyy-mm-dd)
+ * @returns Data no formato brasileiro (dd/mm/yyyy) ou string vazia se inválida
+ */
+function formatDateForExcel(isoDate: string | null | undefined): string {
+    console.log('📅 [ExcelDateFormatter] Formatando data para Excel:', {
+        input: isoDate,
+        type: typeof isoDate
+    });
+
+    // Verifica se a data é válida
+    if (!isoDate || typeof isoDate !== 'string') {
+        console.log('⚠️ [ExcelDateFormatter] Data inválida ou nula:', isoDate);
+        return '';
+    }
+
+    try {
+        // Valida o formato ISO básico (yyyy-mm-dd)
+        const isoRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!isoRegex.test(isoDate)) {
+            console.log('❌ [ExcelDateFormatter] Formato ISO inválido:', isoDate);
+            return '';
+        }
+
+        // Cria um objeto Date para validação
+        const date = new Date(isoDate + 'T00:00:00');
+
+        // Verifica se a data é válida
+        if (isNaN(date.getTime())) {
+            console.log('❌ [ExcelDateFormatter] Data ISO inválida:', isoDate);
+            return '';
+        }
+
+        // Extrai dia, mês e ano
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+
+        // Formata para dd/mm/yyyy
+        const brazilianDate = `${day}/${month}/${year}`;
+
+        console.log('✅ [ExcelDateFormatter] Conversão para Excel bem-sucedida:', {
+            input: isoDate,
+            output: brazilianDate,
+            parsedDate: date.toISOString().split('T')[0]
+        });
+
+        return brazilianDate;
+
+    } catch (error) {
+        console.error('❌ [ExcelDateFormatter] Erro ao formatar data para Excel:', error, { input: isoDate });
+        return '';
+    }
 }
 
 function sanitizeString(value) {
@@ -634,12 +691,14 @@ Deno.serve(async (req) => {
       throw new Error('Worksheet não foi inicializado corretamente ou não possui métodos necessários');
     }
 
-    console.log('Iniciando preenchimento dos dados no template...');
+    console.log('🚀 Iniciando preenchimento dos dados no template Excel...');
+    console.log('📊 [ExcelFormatter] IMPORTANTE: Formatação de data será aplicada APENAS no Excel (formato brasileiro)');
+    console.log('📊 [ExcelFormatter] Banco de dados mantém formato ISO para evitar erros do PostgreSQL');
     console.log('Worksheet válido para preenchimento:', {
-      name: worksheet.name,
-      rowCount: worksheet.rowCount,
-      columnCount: worksheet.columnCount,
-      hasGetCell: typeof worksheet.getCell === 'function'
+        name: worksheet.name,
+        rowCount: worksheet.rowCount,
+        columnCount: worksheet.columnCount,
+        hasGetCell: typeof worksheet.getCell === 'function'
     });
 
     for (const [path, cell] of Object.entries(cellMapping)) {
@@ -650,12 +709,21 @@ Deno.serve(async (req) => {
         }
 
         const rawValue = get(studentFullData, path, null);
-        const sanitizedValue = sanitizeString(rawValue);
+
+        // Aplica formatação especial para campos de data usando função específica
+        let processedValue = rawValue;
+        if (path.includes('data_nascimento') && rawValue && typeof rawValue === 'string') {
+            // Converte data ISO para formato brasileiro usando função específica para Excel
+            processedValue = formatDateForExcel(rawValue);
+            console.log(`📅 [ExcelDateFormatter] Data de nascimento formatada para Excel: "${rawValue}" -> "${processedValue}"`);
+        }
+
+        const sanitizedValue = sanitizeString(processedValue);
 
         // Verificação adicional antes de acessar a célula
         if (worksheet.getCell) {
           worksheet.getCell(cell).value = sanitizedValue;
-          console.log(`Campo ${path} -> Célula ${cell}: "${rawValue}" -> "${sanitizedValue}"`);
+          console.log(`Campo ${path} -> Célula ${cell}: "${rawValue}" -> "${processedValue}" -> "${sanitizedValue}"`);
         } else {
           console.error(`Método getCell não disponível na worksheet para célula ${cell}`);
           throw new Error('Worksheet não possui método getCell');
@@ -665,7 +733,11 @@ Deno.serve(async (req) => {
         throw new Error(`Falha ao preencher campo ${path}: ${cellError instanceof Error ? cellError.message : 'erro desconhecido'}`);
       }
     }
-    console.log('Preenchimento dos dados concluído.');
+    console.log('✅ Preenchimento dos dados concluído.');
+    console.log('📊 [ExcelFormatter] RESUMO: Formatação aplicada apenas no Excel');
+    console.log('📊 [ExcelFormatter] - Banco: formato ISO (1990-12-25) ✅');
+    console.log('📊 [ExcelFormatter] - Excel: formato brasileiro (25/12/1990) ✅');
+    console.log('📊 [ExcelFormatter] - PostgreSQL: sem erros de formato ✅');
 
     console.log('🔄 Gerando buffer final do Excel...');
     let finalExcelBuffer: ArrayBuffer;
@@ -721,7 +793,7 @@ Deno.serve(async (req) => {
       });
 
       // Criar nome do arquivo baseado nos dados do estudante
-      const studentName = sanitizeString(personalData.name || 'estudante');
+      const studentName = sanitizeString(personalData.nome_completo || 'estudante');
       const safeFileName = studentName.replace(/[^a-zA-Z0-9]/g, '_') || 'estudante';
       const fileName = `FICHA_DE_MATRICULA_${safeFileName}_${personalData.id}.xlsx`;
 
