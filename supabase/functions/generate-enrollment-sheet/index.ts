@@ -20,20 +20,83 @@ const cellMapping = {
   'personalData.nascimento_cidade': 'G10',
   'personalData.telefone': 'H22',
   'personalData.email': 'B24',
-  'personalData.profissao': 'i23',
+  'personalData.profissao': 'I23',
   'personalData.empresa': 'N23',
   'addressData.logradouro': 'B19',
   'addressData.numero': 'O19',
   'addressData.bairro': 'C20',
   'addressData.cep': 'C21',
   'addressData.nomeCidade': 'F21',
-  'addressData.state': 'O21',  
+  'addressData.state': 'O21',
   'addressData.cell_phone': 'I22',
   'addressData.email': 'C23',
+  'schoolingData.ra': 'M7'
+};
+
+// Mapeamento específico para células de raça/cor
+const racaCorCellMapping = {
+  'Branca': 'G8',
+  'Preta': 'I8',
+  'Parda': 'K8',
+  'Amarela': 'M8',
+  'Indígena': 'O8',
+  'Quilombola': 'Q8'
+};
+
+// Mapeamento específico para células de "É gêmeo"
+const isGemeoCellMapping = {
+  true: 'O9',   // "( x ) sim"
+  false: 'P9'   // "( x ) não"
+};
+
+// Mapeamento específico para células de escolaridade
+const requerMatriculaEmCellMapping = {
+  'Ensino Fundamental': 'Q11',
+  'Ensino Médio': 'Q12'
+};
+
+const itinerarioFormativoCellMapping = {
+  'Linguagens e Ciências Humanas': 'Q13',
+  'Matemática e Ciências da Natureza': 'K13'
+};
+
+// Mapeamento específico para células de "Estudou no CEEJA"
+const estudouNoCeejaCellMapping = {
+  true: 'K15',   // "( x ) sim"
+  false: 'M15'   // "( x ) não"
+};
+
+// Mapeamento específico para células de "Eliminou disciplina"
+const eliminouDisciplinaCellMapping = {
+  true: 'K16',   // "( x ) sim"
+  false: 'M16'   // "( x ) não"
+};
+
+// Mapeamento específico para células de "É PCD"
+const isPcdCellMapping = {
+  true: 'K17',   // "( x ) sim"
+  false: 'M17'   // "( x ) não"
+};
+
+// Mapeamento específico para células de "Zona"
+const zonaCellMapping = {
+  'Urbana': 'M20',
+  'Rural': 'O20'
+};
+
+// Mapeamento específico para células de "Última Série Concluída"
+const ultimaSerieConcluidaCellMapping = {
+  '4ª Série Ensino Fundamental': 'K25',
+  '5ª Série Ensino Fundamental': 'M25',
+  '6ª Série Ensino Fundamental': 'O25',
+  '7ª Série Ensino Fundamental': 'Q25',
+  '8ª Série Ensino Fundamental': 'K26',
+  '1ª Série do Ensino Médio': 'M26',
+  '2ª Série do Ensino Médio': 'O26'
 };
 
 // URL do arquivo Excel no Supabase Storage
-const EXCEL_TEMPLATE_URL = 'https://ucxjsrrggejajsxrxnov.supabase.co/storage/v1/object/sign/ficha/modelo/FICHA.xlsx?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82OTFjMGU2OC0xYjVkLTQwMWQtOWI5NC1kNjliYTMzNWExZjgiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJmaWNoYS9tb2RlbG8vRklDSEEueGxzeCIsImlhdCI6MTc1ODY1MzMyNywiZXhwIjoxNzkwMTg5MzI3fQ.0X4d2iaTmn3I3kbOHUNLiQtD-UXsOObtNAEJ5LbWLSA';
+const EXCEL_TEMPLATE_URL = 'https://ucxjsrrggejajsxrxnov.supabase.co/storage/v1/object/sign/ficha/modelo/FICHA.xlsx?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82OTFjMGU2OC0xYjVkLTQwMWQtOWI5NC1kNjliYTMzNWExZjgiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJmaWNoYS9tb2RlbG8vRklDSEEueGxzeCIsImlhdCI6MTc1ODc1MjQ5MCwiZXhwIjoxNzkwMjg4NDkwfQ.ldlA8s8yR9MzpkFiZ-kCWCzyubbIPD_QHb1ma9N7hDo';
 
 // Constantes para validação
 const MIN_EXCEL_FILE_SIZE = 10240; // 10KB mínimo para um arquivo Excel válido
@@ -590,6 +653,333 @@ function validateWorksheet(worksheet, context = 'desconhecido') {
   }
 }
 
+/**
+ * Função para processar o preenchimento da raça/cor na ficha
+ * @param worksheet - Planilha Excel onde será feito o preenchimento
+ * @param racaCor - Valor do campo personalData.raca_cor
+ */
+function processRacaCorField(worksheet: ExcelJS.Worksheet, racaCor: string | null | undefined): void {
+  console.log('🔍 [RacaCorProcessor] Processando campo raça/cor:', {
+    input: racaCor,
+    type: typeof racaCor
+  });
+
+  // Verifica se a raça/cor foi informada
+  if (!racaCor || typeof racaCor !== 'string') {
+    console.log('⚠️ [RacaCorProcessor] Raça/cor não informada ou inválida:', racaCor);
+    return;
+  }
+
+  // Normaliza o valor removendo espaços e acentos
+  const normalizedRacaCor = racaCor.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  // Busca a célula correspondente no mapeamento
+  const targetCell = racaCorCellMapping[normalizedRacaCor as keyof typeof racaCorCellMapping];
+
+  if (!targetCell) {
+    console.log('⚠️ [RacaCorProcessor] Raça/cor não encontrada no mapeamento:', normalizedRacaCor);
+    console.log('📋 [RacaCorProcessor] Opções disponíveis:', Object.keys(racaCorCellMapping));
+    return;
+  }
+
+  try {
+    // Verifica se a célula existe na planilha
+    if (worksheet.getCell) {
+      // Preenche a célula com "( x )"
+      worksheet.getCell(targetCell).value = '( x )';
+      console.log(`✅ [RacaCorProcessor] Raça/cor preenchida com sucesso:`, {
+        racaCor: normalizedRacaCor,
+        cell: targetCell,
+        value: '( x )'
+      });
+    } else {
+      console.error(`❌ [RacaCorProcessor] Método getCell não disponível na worksheet`);
+    }
+  } catch (error) {
+    console.error(`❌ [RacaCorProcessor] Erro ao preencher célula ${targetCell}:`, error);
+  }
+}
+
+/**
+ * Função para processar o preenchimento do campo "É gêmeo" na ficha
+ * @param worksheet - Planilha Excel onde será feito o preenchimento
+ * @param isGemeo - Valor do campo personalData.is_gemeo (boolean)
+ */
+function processIsGemeoField(worksheet: ExcelJS.Worksheet, isGemeo: boolean | null | undefined): void {
+  console.log('🔍 [IsGemeoProcessor] Processando campo "É gêmeo":', {
+    input: isGemeo,
+    type: typeof isGemeo
+  });
+
+  // Verifica se o campo foi definido (não é null ou undefined)
+  if (isGemeo === null || isGemeo === undefined) {
+    console.log('⚠️ [IsGemeoProcessor] Campo "É gêmeo" não definido:', isGemeo);
+    return;
+  }
+
+  // Busca a célula correspondente no mapeamento
+  const targetCell = isGemeoCellMapping[isGemeo];
+
+  if (!targetCell) {
+    console.log('⚠️ [IsGemeoProcessor] Valor de "É gêmeo" não encontrado no mapeamento:', isGemeo);
+    console.log('📋 [IsGemeoProcessor] Opções disponíveis:', Object.keys(isGemeoCellMapping));
+    return;
+  }
+
+  try {
+    // Verifica se a célula existe na planilha
+    if (worksheet.getCell) {
+      // Preenche a célula com "( x )"
+      worksheet.getCell(targetCell).value = '( x )';
+      console.log(`✅ [IsGemeoProcessor] Campo "É gêmeo" preenchido com sucesso:`, {
+        isGemeo: isGemeo,
+        cell: targetCell,
+        value: '( x )'
+      });
+    } else {
+      console.error(`❌ [IsGemeoProcessor] Método getCell não disponível na worksheet`);
+    }
+  } catch (error) {
+    console.error(`❌ [IsGemeoProcessor] Erro ao preencher célula ${targetCell}:`, error);
+  }
+}
+
+/**
+ * Função para processar o preenchimento dos campos de escolaridade na ficha
+ * @param worksheet - Planilha Excel onde será feito o preenchimento
+ * @param schoolingData - Dados de escolaridade do estudante
+ */
+function processSchoolingFields(worksheet: ExcelJS.Worksheet, schoolingData: any): void {
+  console.log('🔍 [SchoolingProcessor] Processando campos de escolaridade:', {
+    requerMatriculaEm: schoolingData?.requer_matricula_em,
+    itinerarioFormativo: schoolingData?.itinerario_formativo
+  });
+
+  // Processa o campo "requer_matricula_em"
+  if (schoolingData?.requer_matricula_em) {
+    const normalizedRequerMatricula = schoolingData.requer_matricula_em.trim();
+    const targetCell = requerMatriculaEmCellMapping[normalizedRequerMatricula as keyof typeof requerMatriculaEmCellMapping];
+
+    if (targetCell) {
+      try {
+        if (worksheet.getCell) {
+          worksheet.getCell(targetCell).value = '( x )';
+          console.log(`✅ [SchoolingProcessor] Campo "requer_matricula_em" preenchido:`, {
+            value: normalizedRequerMatricula,
+            cell: targetCell,
+            value: '( x )'
+          });
+
+          // Se é "Ensino Médio", processa também o itinerário formativo
+          if (normalizedRequerMatricula === 'Ensino Médio' && schoolingData?.itinerario_formativo) {
+            const normalizedItinerario = schoolingData.itinerario_formativo.trim();
+            const itinerarioCell = itinerarioFormativoCellMapping[normalizedItinerario as keyof typeof itinerarioFormativoCellMapping];
+
+            if (itinerarioCell) {
+              worksheet.getCell(itinerarioCell).value = '( x )';
+              console.log(`✅ [SchoolingProcessor] Campo "itinerario_formativo" preenchido:`, {
+                value: normalizedItinerario,
+                cell: itinerarioCell,
+                value: '( x )'
+              });
+            } else {
+              console.log('⚠️ [SchoolingProcessor] Itinerário formativo não encontrado no mapeamento:', normalizedItinerario);
+              console.log('📋 [SchoolingProcessor] Opções disponíveis:', Object.keys(itinerarioFormativoCellMapping));
+            }
+          }
+        } else {
+          console.error(`❌ [SchoolingProcessor] Método getCell não disponível na worksheet`);
+        }
+      } catch (error) {
+        console.error(`❌ [SchoolingProcessor] Erro ao preencher célula ${targetCell}:`, error);
+      }
+    } else {
+      console.log('⚠️ [SchoolingProcessor] Valor de "requer_matricula_em" não encontrado no mapeamento:', normalizedRequerMatricula);
+      console.log('📋 [SchoolingProcessor] Opções disponíveis:', Object.keys(requerMatriculaEmCellMapping));
+    }
+  } else {
+    console.log('⚠️ [SchoolingProcessor] Campo "requer_matricula_em" não informado');
+  }
+}
+
+/**
+ * Função para processar o preenchimento da última série concluída na ficha
+ * @param worksheet - Planilha Excel onde será feito o preenchimento
+ * @param ultimaSerieConcluida - Valor do campo schoolingData.ultima_serie_concluida
+ */
+function processUltimaSerieConcluidaField(worksheet: ExcelJS.Worksheet, ultimaSerieConcluida: string | null | undefined): void {
+  console.log('🔍 [UltimaSerieProcessor] Processando última série concluída:', {
+    input: ultimaSerieConcluida,
+    type: typeof ultimaSerieConcluida
+  });
+
+  // Verifica se a série foi informada
+  if (!ultimaSerieConcluida || typeof ultimaSerieConcluida !== 'string') {
+    console.log('⚠️ [UltimaSerieProcessor] Última série concluída não informada ou inválida:', ultimaSerieConcluida);
+    return;
+  }
+
+  // Normaliza o valor removendo espaços extras e garantindo correspondência exata
+  const normalizedSerie = ultimaSerieConcluida.trim();
+
+  // Busca a célula correspondente no mapeamento
+  const targetCell = ultimaSerieConcluidaCellMapping[normalizedSerie as keyof typeof ultimaSerieConcluidaCellMapping];
+
+  if (!targetCell) {
+    console.log('⚠️ [UltimaSerieProcessor] Série não encontrada no mapeamento:', normalizedSerie);
+    console.log('📋 [UltimaSerieProcessor] Opções disponíveis:', Object.keys(ultimaSerieConcluidaCellMapping));
+    return;
+  }
+
+  try {
+    // Verifica se a célula existe na planilha
+    if (worksheet.getCell) {
+      // Preenche a célula com "( x )"
+      worksheet.getCell(targetCell).value = '( x )';
+      console.log(`✅ [UltimaSerieProcessor] Última série concluída preenchida com sucesso:`, {
+        serie: normalizedSerie,
+        cell: targetCell,
+        value: '( x )'
+      });
+    } else {
+      console.error(`❌ [UltimaSerieProcessor] Método getCell não disponível na worksheet`);
+    }
+  } catch (error) {
+    console.error(`❌ [UltimaSerieProcessor] Erro ao preencher célula ${targetCell}:`, error);
+  }
+}
+
+/**
+ * Função para processar o preenchimento dos campos adicionais na ficha
+ * @param worksheet - Planilha Excel onde será feito o preenchimento
+ * @param personalData - Dados pessoais do estudante
+ * @param addressData - Dados de endereço do estudante
+ * @param schoolingData - Dados de escolaridade do estudante
+ */
+function processAdditionalFields(worksheet: ExcelJS.Worksheet, personalData: any, addressData: any, schoolingData: any): void {
+  console.log('🔍 [AdditionalFieldsProcessor] Processando campos adicionais...');
+
+  // Processa o campo "estudou_no_ceeja"
+  if (schoolingData?.estudou_no_ceeja !== null && schoolingData?.estudou_no_ceeja !== undefined) {
+    const targetCell = estudouNoCeejaCellMapping[schoolingData.estudou_no_ceeja];
+    if (targetCell) {
+      try {
+        if (worksheet.getCell) {
+          worksheet.getCell(targetCell).value = '( x )';
+          console.log(`✅ [AdditionalFieldsProcessor] Campo "estudou_no_ceeja" preenchido:`, {
+            value: schoolingData.estudou_no_ceeja,
+            cell: targetCell
+          });
+        }
+      } catch (error) {
+        console.error(`❌ [AdditionalFieldsProcessor] Erro ao preencher célula ${targetCell}:`, error);
+      }
+    }
+  }
+
+  // Processa o campo "eliminou_disciplina"
+  if (schoolingData?.eliminou_disciplina !== null && schoolingData?.eliminou_disciplina !== undefined) {
+    const targetCell = eliminouDisciplinaCellMapping[schoolingData.eliminou_disciplina];
+    if (targetCell) {
+      try {
+        if (worksheet.getCell) {
+          worksheet.getCell(targetCell).value = '( x )';
+          console.log(`✅ [AdditionalFieldsProcessor] Campo "eliminou_disciplina" preenchido:`, {
+            value: schoolingData.eliminou_disciplina,
+            cell: targetCell
+          });
+        }
+      } catch (error) {
+        console.error(`❌ [AdditionalFieldsProcessor] Erro ao preencher célula ${targetCell}:`, error);
+      }
+    }
+  }
+
+  // Processa o campo "eliminou_disciplina_nivel"
+  if (schoolingData?.eliminou_disciplina_nivel) {
+    try {
+      if (worksheet.getCell) {
+        worksheet.getCell('C28').value = schoolingData.eliminou_disciplina_nivel;
+        console.log(`✅ [AdditionalFieldsProcessor] Campo "eliminou_disciplina_nivel" preenchido:`, {
+          value: schoolingData.eliminou_disciplina_nivel,
+          cell: 'C28'
+        });
+      }
+    } catch (error) {
+      console.error(`❌ [AdditionalFieldsProcessor] Erro ao preencher célula C28:`, error);
+    }
+  }
+
+  // Processa o campo "eliminou_disciplinas"
+  if (schoolingData?.eliminou_disciplinas) {
+    const disciplinasValue = Array.isArray(schoolingData.eliminou_disciplinas)
+      ? schoolingData.eliminou_disciplinas.join(', ')
+      : schoolingData.eliminou_disciplinas;
+
+    try {
+      if (worksheet.getCell) {
+        worksheet.getCell('I28').value = disciplinasValue;
+        console.log(`✅ [AdditionalFieldsProcessor] Campo "eliminou_disciplinas" preenchido:`, {
+          value: disciplinasValue,
+          cell: 'I28'
+        });
+      }
+    } catch (error) {
+      console.error(`❌ [AdditionalFieldsProcessor] Erro ao preencher célula I28:`, error);
+    }
+  }
+
+  // Processa o campo "is_pcd" e "deficiência"
+  if (personalData?.is_pcd !== null && personalData?.is_pcd !== undefined) {
+    const targetCell = isPcdCellMapping[personalData.is_pcd];
+    if (targetCell) {
+      try {
+        if (worksheet.getCell) {
+          worksheet.getCell(targetCell).value = '( x )';
+          console.log(`✅ [AdditionalFieldsProcessor] Campo "is_pcd" preenchido:`, {
+            value: personalData.is_pcd,
+            cell: targetCell
+          });
+
+          // Se é PCD, preenche também o campo deficiência
+          if (personalData.is_pcd && personalData?.deficiencia) {
+            worksheet.getCell('I14').value = personalData.deficiencia;
+            console.log(`✅ [AdditionalFieldsProcessor] Campo "deficiencia" preenchido:`, {
+              value: personalData.deficiencia,
+              cell: 'I14'
+            });
+          }
+        }
+      } catch (error) {
+        console.error(`❌ [AdditionalFieldsProcessor] Erro ao preencher célula ${targetCell}:`, error);
+      }
+    }
+  }
+
+  // Processa o campo "zona"
+  if (addressData?.zona) {
+    const normalizedZona = addressData.zona.trim();
+    const targetCell = zonaCellMapping[normalizedZona as keyof typeof zonaCellMapping];
+
+    if (targetCell) {
+      try {
+        if (worksheet.getCell) {
+          worksheet.getCell(targetCell).value = '( x )';
+          console.log(`✅ [AdditionalFieldsProcessor] Campo "zona" preenchido:`, {
+            value: normalizedZona,
+            cell: targetCell
+          });
+        }
+      } catch (error) {
+        console.error(`❌ [AdditionalFieldsProcessor] Erro ao preencher célula ${targetCell}:`, error);
+      }
+    } else {
+      console.log('⚠️ [AdditionalFieldsProcessor] Valor de "zona" não encontrado no mapeamento:', normalizedZona);
+      console.log('📋 [AdditionalFieldsProcessor] Opções disponíveis:', Object.keys(zonaCellMapping));
+    }
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -744,7 +1134,32 @@ Deno.serve(async (req) => {
     console.log('📊 [ExcelFormatter] - Excel: formato brasileiro (25/12/1990) ✅');
     console.log('📊 [ExcelFormatter] - PostgreSQL: sem erros de formato ✅');
 
-    console.log('🔄 Gerando buffer final do Excel...');
+    // Processa o preenchimento da raça/cor
+    console.log('🔍 [RacaCorProcessor] Iniciando processamento da raça/cor...');
+    processRacaCorField(worksheet, personalData.raca_cor);
+    console.log('✅ [RacaCorProcessor] Processamento da raça/cor concluído.');
+
+    // Processa o preenchimento do campo "É gêmeo"
+    console.log('🔍 [IsGemeoProcessor] Iniciando processamento do campo "É gêmeo"...');
+    processIsGemeoField(worksheet, personalData.is_gemeo);
+    console.log('✅ [IsGemeoProcessor] Processamento do campo "É gêmeo" concluído.');
+
+    // Processa o preenchimento dos campos de escolaridade
+    console.log('🔍 [SchoolingProcessor] Iniciando processamento dos campos de escolaridade...');
+    processSchoolingFields(worksheet, schoolingData);
+    console.log('✅ [SchoolingProcessor] Processamento dos campos de escolaridade concluído.');
+
+    // Processa o preenchimento dos campos adicionais
+    console.log('🔍 [AdditionalFieldsProcessor] Iniciando processamento dos campos adicionais...');
+    processAdditionalFields(worksheet, personalData, addressData, schoolingData);
+    console.log('✅ [AdditionalFieldsProcessor] Processamento dos campos adicionais concluído.');
+
+    // Processa o preenchimento da última série concluída
+    console.log('🔍 [UltimaSerieProcessor] Iniciando processamento da última série concluída...');
+    processUltimaSerieConcluidaField(worksheet, schoolingData?.ultima_serie_concluida);
+    console.log('✅ [UltimaSerieProcessor] Processamento da última série concluída concluído.');
+
+    console.log(' Gerando buffer final do Excel...');
     let finalExcelBuffer: ArrayBuffer;
 
     try {
