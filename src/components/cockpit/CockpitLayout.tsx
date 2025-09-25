@@ -5,9 +5,24 @@ import { useQuery } from 'react-query';
 import PainelEdicao from '../panels/PainelEdicao/PainelEdicao';
 import PainelDocumentos from '../panels/PainelDocumentos/PainelDocumentos';
 import PainelVisualizacao from '../panels/PainelVisualizacao/PainelVisualizacao';
+import PainelChecklist from '../panels/PainelChecklist/PainelChecklist';
 import { useDataProvider, type RaRecord, useEditController } from 'react-admin';
 import { Box, CircularProgress, Alert } from '@mui/material';
 import { useStudentDocuments } from '../../hooks/useStudentDocuments';
+import { useDocumentChecklist } from '../../hooks/useDocumentChecklist';
+
+// Interface inline para evitar problemas de import
+interface StudentDocumentChecklist {
+  id: string;
+  student_id: string;
+  enrollment_id?: string;
+  items: any[];
+  status_summary: any;
+  created_at: string;
+  updated_at: string;
+  last_reviewed_by?: string;
+  last_reviewed_at?: string;
+}
 
 // --- Tipos ---
 interface Document {
@@ -26,6 +41,9 @@ interface CockpitContextType {
     documentUrl: string;
     documents: Document[];
     documentsLoading: boolean;
+    checklist: StudentDocumentChecklist | null;
+    checklistLoading: boolean;
+    refreshChecklist: () => Promise<void>;
 }
 
 // --- Contexto ---
@@ -65,15 +83,30 @@ const CockpitProvider: React.FC<{ studentId: string; children: ReactNode }> = ({
         documentUrl,
     } = useStudentDocuments(studentData?.student_id || studentData?.id);
 
+    const {
+        checklist,
+        loading: checklistLoading,
+        refreshChecklist,
+    } = useDocumentChecklist(studentData?.student_id || studentData?.id);
+
+    // Normalizar o status para usar status_summary
+    const normalizedChecklist = checklist ? {
+        ...checklist,
+        status: checklist.status_summary
+    } : null;
+
     const value = {
         studentData: studentData || null,
-        loading,
+        loading: loading || checklistLoading,
         error,
         documents,
         selectedDocument,
         setSelectedDocument,
         documentsLoading,
         documentUrl,
+        checklist: normalizedChecklist,
+        checklistLoading,
+        refreshChecklist,
     };
 
     return (
@@ -83,19 +116,22 @@ const CockpitProvider: React.FC<{ studentId: string; children: ReactNode }> = ({
     );
 };
 
-// --- Layout Principal (As 3 Colunas) ---
-export const CockpitLayout: React.FC<{ children: [ReactNode, ReactNode, ReactNode] }> = ({ children }) => {
-    const [PainelEdicao, PainelDocumentos, PainelVisualizacao] = children;
+// --- Layout Principal (4 Colunas) ---
+export const CockpitLayout: React.FC<{ children: [ReactNode, ReactNode, ReactNode, ReactNode] }> = ({ children }) => {
+    const [PainelDocumentos, PainelEdicao, PainelChecklist, PainelVisualizacao] = children;
 
     return (
         <Box sx={{ display: 'flex', height: 'calc(100vh - 64px)' }}> {/* Altura total menos o header */}
             <Box sx={{ width: '15%', borderRight: 1, borderColor: 'divider', overflowY: 'auto' }}>
                 {PainelDocumentos}
             </Box>
-            <Box sx={{ width: '45%', borderRight: 1, borderColor: 'divider', overflowY: 'auto' }}>
+            <Box sx={{ width: '30%', borderRight: 1, borderColor: 'divider', overflowY: 'auto' }}>
                 {PainelEdicao}
             </Box>
-            <Box sx={{ width: '40%', overflowY: 'auto' }}>
+            <Box sx={{ width: '25%', borderRight: 1, borderColor: 'divider', overflowY: 'auto' }}>
+                {PainelChecklist}
+            </Box>
+            <Box sx={{ width: '30%', overflowY: 'auto' }}>
                 {PainelVisualizacao}
             </Box>
         </Box>
@@ -110,8 +146,9 @@ export const AlunoEditOrchestrator: React.FC = () => {
     return (
         <CockpitProvider studentId={record.id}>
             <CockpitLayout>
-                <PainelEdicao />
                 <PainelDocumentos />
+                <PainelEdicao />
+                <PainelChecklist />
                 <PainelVisualizacao />
             </CockpitLayout>
         </CockpitProvider>

@@ -112,8 +112,26 @@ const optouEducacaoFisicaCellMapping = {
   false: 'I31'   // "NÃO ( X )"
 };
 
+// Mapeamento específico para células de documentos entregues
+const documentChecklistCellMapping = {
+  'rg': 'A40',                                    // RG (Carteira de Identidade)
+  'cpf': 'A41',                                   // CPF
+  'certidao_nascimento_casamento': 'I40',         // Certidão de Nascimento ou Casamento
+  'foto_3x4': 'A42',                              // Foto 3x4
+  'historico_escolar_fundamental': 'D40',         // Histórico Escolar - Ensino Fundamental
+  'historico_escolar_medio': 'D41',               // Histórico Escolar - Ensino Médio
+  'comprovante_residencia': 'D42',                // Comprovante de Residência
+  'tit_eleitor': 'I42',                           // Título de Eleitor
+  'carteira_vacinacao_covid': 'M40',              // Carteira de Vacinação COVID
+  'atestado_eliminacao_disciplina': 'M41',        // Atestado de Eliminação de Disciplina
+  'reservista': 'I41',                            // Reservista
+  'requerimento_dispensa_educacao_fisica': 'A43', // Requerimento de Dispensa de Educação Física
+  'declaracao_transferencia': 'M42',              // Declaração de Transferência
+  'outros': 'D43'                                 // Outros Documentos
+};
+
 // URL do arquivo Excel no Supabase Storage
-const EXCEL_TEMPLATE_URL = 'https://ucxjsrrggejajsxrxnov.supabase.co/storage/v1/object/sign/ficha/modelo/FICHA.xlsx?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82OTFjMGU2OC0xYjVkLTQwMWQtOWI5NC1kNjliYTMzNWExZjgiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJmaWNoYS9tb2RlbG8vRklDSEEueGxzeCIsImlhdCI6MTc1ODc1MjQ5MCwiZXhwIjoxNzkwMjg4NDkwfQ.ldlA8s8yR9MzpkFiZ-kCWCzyubbIPD_QHb1ma9N7hDo';
+const EXCEL_TEMPLATE_URL = 'https://ucxjsrrggejajsxrxnov.supabase.co/storage/v1/object/sign/ficha/modelo/FICHA.xlsx?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82OTFjMGU2OC0xYjVkLTQwMWQtOWI5NC1kNjliYTMzNWExZjgiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJmaWNoYS9tb2RlbG8vRklDSEEueGxzeCIsImlhdCI6MTc1ODgwNDMxNywiZXhwIjoxNzkwMzQwMzE3fQ.Gc_N1_4LLm_L-FQ0q9xeE97DRvE9eFUHu2bu_gt8Psw';
 
 // Constantes para validação
 const MIN_EXCEL_FILE_SIZE = 10240; // 10KB mínimo para um arquivo Excel válido
@@ -1009,6 +1027,87 @@ function processAdditionalSchoolingFields(worksheet: ExcelJS.Worksheet, schoolin
 }
 
 /**
+ * Função para processar o preenchimento dos documentos entregues na ficha
+ * @param worksheet - Planilha Excel onde será feito o preenchimento
+ * @param documentChecklistData - Dados da checklist de documentos do estudante
+ */
+function processDocumentChecklistFields(worksheet: ExcelJS.Worksheet, documentChecklistData: any): void {
+  console.log('🔍 [DocumentChecklistProcessor] Processando documentos entregues...');
+
+  // Verifica se os dados da checklist existem
+  if (!documentChecklistData) {
+    console.log('⚠️ [DocumentChecklistProcessor] Dados da checklist de documentos não encontrados');
+    return;
+  }
+
+  // Verifica se a coluna 'items' existe e contém dados
+  if (!documentChecklistData.items || !Array.isArray(documentChecklistData.items)) {
+    console.log('⚠️ [DocumentChecklistProcessor] Items da checklist não encontrados ou inválidos');
+    return;
+  }
+
+  console.log(`📋 [DocumentChecklistProcessor] Processando ${documentChecklistData.items.length} documentos...`);
+
+  // Itera sobre cada documento na checklist
+  documentChecklistData.items.forEach((item: any, index: number) => {
+    try {
+      const documentType = item.document_type;
+      const isDelivered = item.is_delivered;
+      const documentName = item.document_name;
+
+      console.log(`🔍 [DocumentChecklistProcessor] Processando documento ${index + 1}:`, {
+        documentType,
+        documentName,
+        isDelivered,
+        approvedByAdmin: item.approved_by_admin
+      });
+
+      // Busca a célula correspondente no mapeamento
+      const targetCell = documentChecklistCellMapping[documentType as keyof typeof documentChecklistCellMapping];
+
+      if (!targetCell) {
+        console.log(`⚠️ [DocumentChecklistProcessor] Tipo de documento não encontrado no mapeamento: ${documentType}`);
+        console.log('📋 [DocumentChecklistProcessor] Tipos disponíveis:', Object.keys(documentChecklistCellMapping));
+        return;
+      }
+
+      // Verifica se o documento foi entregue
+      if (isDelivered === true) {
+        // Preenche a célula com "( x )" para documentos entregues
+        if (worksheet.getCell) {
+          worksheet.getCell(targetCell).value = '( x )';
+          console.log(`✅ [DocumentChecklistProcessor] Documento entregue marcado:`, {
+            documentType,
+            documentName,
+            cell: targetCell,
+            value: '( x )'
+          });
+        } else {
+          console.error(`❌ [DocumentChecklistProcessor] Método getCell não disponível na worksheet`);
+        }
+      } else {
+        // Para documentos não entregues, marca "(  )" (espaço em branco)
+        if (worksheet.getCell) {
+          worksheet.getCell(targetCell).value = '(  )';
+          console.log(`⚠️ [DocumentChecklistProcessor] Documento não entregue:`, {
+            documentType,
+            documentName,
+            cell: targetCell,
+            value: '(  )'
+          });
+        } else {
+          console.error(`❌ [DocumentChecklistProcessor] Método getCell não disponível na worksheet`);
+        }
+      }
+    } catch (error) {
+      console.error(`❌ [DocumentChecklistProcessor] Erro ao processar documento ${index + 1}:`, error);
+    }
+  });
+
+  console.log('✅ [DocumentChecklistProcessor] Processamento de documentos concluído.');
+}
+
+/**
  * Função para processar o preenchimento dos campos adicionais na ficha
  * @param worksheet - Planilha Excel onde será feito o preenchimento
  * @param personalData - Dados pessoais do estudante
@@ -1182,7 +1281,11 @@ Deno.serve(async (req) => {
       .from('schooling_data').select('*').eq('student_id', actualStudentId).maybeSingle();
     if (schoolingError) throw new Error(`Erro ao buscar dados de escolaridade: ${schoolingError.message}`);
 
-    const studentFullData = { personalData, addressData, schoolingData };
+    const { data: documentChecklistData, error: documentChecklistError } = await supabaseClient
+      .from('student_document_checklist').select('*').eq('student_id', actualStudentId).maybeSingle();
+    if (documentChecklistError) throw new Error(`Erro ao buscar checklist de documentos: ${documentChecklistError.message}`);
+
+    const studentFullData = { personalData, addressData, schoolingData, documentChecklistData };
 
     // Validação do token de autenticação
     console.log('Validando token de autenticação...');
@@ -1322,6 +1425,11 @@ Deno.serve(async (req) => {
     console.log('🔍 [AdditionalSchoolingProcessor] Iniciando processamento dos campos adicionais de escolaridade...');
     processAdditionalSchoolingFields(worksheet, schoolingData);
     console.log('✅ [AdditionalSchoolingProcessor] Processamento dos campos adicionais de escolaridade concluído.');
+
+    // Processa o preenchimento dos documentos entregues
+    console.log('🔍 [DocumentChecklistProcessor] Iniciando processamento dos documentos entregues...');
+    processDocumentChecklistFields(worksheet, documentChecklistData);
+    console.log('✅ [DocumentChecklistProcessor] Processamento dos documentos entregues concluído.');
 
     console.log(' Gerando buffer final do Excel...');
     let finalExcelBuffer: ArrayBuffer;
