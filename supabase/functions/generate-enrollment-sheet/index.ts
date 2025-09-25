@@ -95,6 +95,23 @@ const ultimaSerieConcluidaCellMapping = {
   '2ª Série do Ensino Médio': 'O26'
 };
 
+// Mapeamento específico para células de "Tem Progressão Parcial"
+const temProgressaoParcialCellMapping = {
+  true: 'D27'   // "SIM"
+};
+
+// Mapeamento específico para células de "Optou Ensino Religioso"
+const optouEnsinoReligiosoCellMapping = {
+  true: 'I30',   // "( X )"
+  false: 'L30'   // "( X )"
+};
+
+// Mapeamento específico para células de "Optou Educação Física"
+const optouEducacaoFisicaCellMapping = {
+  true: 'I32',   // "SIM ( X )"
+  false: 'I31'   // "NÃO ( X )"
+};
+
 // URL do arquivo Excel no Supabase Storage
 const EXCEL_TEMPLATE_URL = 'https://ucxjsrrggejajsxrxnov.supabase.co/storage/v1/object/sign/ficha/modelo/FICHA.xlsx?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82OTFjMGU2OC0xYjVkLTQwMWQtOWI5NC1kNjliYTMzNWExZjgiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJmaWNoYS9tb2RlbG8vRklDSEEueGxzeCIsImlhdCI6MTc1ODc1MjQ5MCwiZXhwIjoxNzkwMjg4NDkwfQ.ldlA8s8yR9MzpkFiZ-kCWCzyubbIPD_QHb1ma9N7hDo';
 
@@ -850,6 +867,148 @@ function processUltimaSerieConcluidaField(worksheet: ExcelJS.Worksheet, ultimaSe
 }
 
 /**
+ * Função para processar o preenchimento dos campos adicionais de escolaridade na ficha
+ * @param worksheet - Planilha Excel onde será feito o preenchimento
+ * @param schoolingData - Dados de escolaridade do estudante
+ */
+function processAdditionalSchoolingFields(worksheet: ExcelJS.Worksheet, schoolingData: any): void {
+  console.log('🔍 [AdditionalSchoolingProcessor] Processando campos adicionais de escolaridade...');
+
+  // Processa o campo "tem_progressao_parcial"
+  if (schoolingData?.tem_progressao_parcial === true) {
+    try {
+      if (worksheet.getCell) {
+        worksheet.getCell('D27').value = 'SIM';
+        console.log(`✅ [AdditionalSchoolingProcessor] Campo "tem_progressao_parcial" preenchido:`, {
+          value: 'SIM',
+          cell: 'D27'
+        });
+      }
+    } catch (error) {
+      console.error(`❌ [AdditionalSchoolingProcessor] Erro ao preencher célula D27:`, error);
+    }
+  }
+
+  // Processa o campo "optou_ensino_religioso"
+  if (schoolingData?.optou_ensino_religioso !== null && schoolingData?.optou_ensino_religioso !== undefined) {
+    const targetCell = optouEnsinoReligiosoCellMapping[schoolingData.optou_ensino_religioso];
+    if (targetCell) {
+      try {
+        if (worksheet.getCell) {
+          worksheet.getCell(targetCell).value = '( X )';
+          console.log(`✅ [AdditionalSchoolingProcessor] Campo "optou_ensino_religioso" preenchido:`, {
+            value: schoolingData.optou_ensino_religioso,
+            cell: targetCell
+          });
+        }
+      } catch (error) {
+        console.error(`❌ [AdditionalSchoolingProcessor] Erro ao preencher célula ${targetCell}:`, error);
+      }
+    }
+  }
+
+  // Processa o campo "optou_educacao_fisica"
+  if (schoolingData?.optou_educacao_fisica !== null && schoolingData?.optou_educacao_fisica !== undefined) {
+    const targetCell = optouEducacaoFisicaCellMapping[schoolingData.optou_educacao_fisica];
+    if (targetCell) {
+      try {
+        if (worksheet.getCell) {
+          const value = schoolingData.optou_educacao_fisica ? 'SIM ( X )' : 'NÃO ( X )';
+          worksheet.getCell(targetCell).value = value;
+          console.log(`✅ [AdditionalSchoolingProcessor] Campo "optou_educacao_fisica" preenchido:`, {
+            value: schoolingData.optou_educacao_fisica,
+            cell: targetCell,
+            text: value
+          });
+        }
+      } catch (error) {
+        console.error(`❌ [AdditionalSchoolingProcessor] Erro ao preencher célula ${targetCell}:`, error);
+      }
+    }
+  }
+
+  // Processa o campo "data_aceite" - converte data ISO para formato brasileiro
+  if (schoolingData?.data_aceite) {
+    try {
+      if (worksheet.getCell) {
+        const rawDate = schoolingData.data_aceite;
+        console.log(`🔍 [AdditionalSchoolingProcessor] Processando data_aceite:`, {
+          rawInput: rawDate,
+          inputType: typeof rawDate,
+          inputLength: rawDate ? rawDate.length : 0
+        });
+
+        let finalDate = rawDate;
+
+        // Verifica se é string e tenta converter
+        if (typeof rawDate === 'string') {
+          console.log(`📅 [AdditionalSchoolingProcessor] Tentando converter string de data: "${rawDate}"`);
+
+          // Tenta diferentes formatos de data
+          const formats = [
+            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,  // ISO com T: 2025-09-24T21:15:35
+            /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/,  // ISO com espaço: 2025-09-24 21:15:35
+            /^\d{4}-\d{2}-\d{2}/,                    // Só data: 2025-09-24
+          ];
+
+          let converted = false;
+          for (const format of formats) {
+            if (format.test(rawDate)) {
+              console.log(`✅ [AdditionalSchoolingProcessor] Formato detectado, tentando converter...`);
+
+              try {
+                const date = new Date(rawDate);
+                console.log(`📅 [AdditionalSchoolingProcessor] Objeto Date criado:`, {
+                  dateString: date.toString(),
+                  isValid: !isNaN(date.getTime()),
+                  timestamp: date.getTime()
+                });
+
+                if (!isNaN(date.getTime())) {
+                  const day = String(date.getDate()).padStart(2, '0');
+                  const month = String(date.getMonth() + 1).padStart(2, '0');
+                  const year = date.getFullYear();
+                  finalDate = `${day}/${month}/${year}`;
+
+                  console.log(`✅ [AdditionalSchoolingProcessor] Conversão bem-sucedida:`, {
+                    original: rawDate,
+                    converted: finalDate,
+                    day, month, year
+                  });
+
+                  converted = true;
+                  break;
+                }
+              } catch (conversionError) {
+                console.warn(`⚠️ [AdditionalSchoolingProcessor] Erro na conversão:`, conversionError);
+              }
+            }
+          }
+
+          if (!converted) {
+            console.log(`⚠️ [AdditionalSchoolingProcessor] Nenhum formato reconhecido, usando valor original`);
+          }
+        } else {
+          console.log(`⚠️ [AdditionalSchoolingProcessor] Tipo não-string, usando valor original:`, typeof rawDate);
+        }
+
+        // Preenche na célula O47
+        worksheet.getCell('O47').value = finalDate;
+        console.log(`✅ [AdditionalSchoolingProcessor] Campo "data_aceite" preenchido em O47:`, {
+          original: rawDate,
+          final: finalDate,
+          cell: 'O47'
+        });
+      }
+    } catch (error) {
+      console.error(`❌ [AdditionalSchoolingProcessor] Erro ao processar data_aceite:`, error);
+    }
+  } else {
+    console.log(`⚠️ [AdditionalSchoolingProcessor] data_aceite não informado ou vazio`);
+  }
+}
+
+/**
  * Função para processar o preenchimento dos campos adicionais na ficha
  * @param worksheet - Planilha Excel onde será feito o preenchimento
  * @param personalData - Dados pessoais do estudante
@@ -1158,6 +1317,11 @@ Deno.serve(async (req) => {
     console.log('🔍 [UltimaSerieProcessor] Iniciando processamento da última série concluída...');
     processUltimaSerieConcluidaField(worksheet, schoolingData?.ultima_serie_concluida);
     console.log('✅ [UltimaSerieProcessor] Processamento da última série concluída concluído.');
+
+    // Processa o preenchimento dos campos adicionais de escolaridade
+    console.log('🔍 [AdditionalSchoolingProcessor] Iniciando processamento dos campos adicionais de escolaridade...');
+    processAdditionalSchoolingFields(worksheet, schoolingData);
+    console.log('✅ [AdditionalSchoolingProcessor] Processamento dos campos adicionais de escolaridade concluído.');
 
     console.log(' Gerando buffer final do Excel...');
     let finalExcelBuffer: ArrayBuffer;
