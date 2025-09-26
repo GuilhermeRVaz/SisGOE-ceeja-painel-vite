@@ -124,10 +124,10 @@ const documentChecklistCellMapping = {
   'tit_eleitor': 'I42',                           // Título de Eleitor
   'carteira_vacinacao_covid': 'M40',              // Carteira de Vacinação COVID
   'atestado_eliminacao_disciplina': 'M41',        // Atestado de Eliminação de Disciplina
-  'reservista': 'I41',                            // Reservista
-  'requerimento_dispensa_educacao_fisica': 'A43', // Requerimento de Dispensa de Educação Física
   'declaracao_transferencia': 'M42',              // Declaração de Transferência
-  'outros': 'D43'                                 // Outros Documentos
+  'outros': 'D43',                                // Outros Documentos
+  'requerimento_dispensa_educacao_fisica': 'A43', // Requerimento de Dispensa de Educação Física
+  'reservista': 'I41'                             // Reservista
 };
 
 // URL do arquivo Excel no Supabase Storage

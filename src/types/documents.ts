@@ -177,17 +177,8 @@ export const DEFAULT_REQUIRED_DOCUMENTS: Omit<DocumentChecklistItem, 'id' | 'del
     approved_by_admin: false
   },
   {
-    document_type: 'requerimento_dispensa_educacao_fisica',
-    document_name: 'Requerimento de Dispensa de Educação Física',
-    is_required: false,
-    is_delivered: false,
-    required_for_enrollment: false,
-    category: 'schooling',
-    approved_by_admin: false
-  },
-  {
-    document_type: 'reservista',
-    document_name: 'Reservista',
+    document_type: 'outros',
+    document_name: 'Outros Documentos',
     is_required: false,
     is_delivered: false,
     required_for_enrollment: false,
@@ -195,8 +186,17 @@ export const DEFAULT_REQUIRED_DOCUMENTS: Omit<DocumentChecklistItem, 'id' | 'del
     approved_by_admin: false
   },
   {
-    document_type: 'outros',
-    document_name: 'Outros Documentos',
+    document_type: 'requerimento_dispensa_educacao_fisica',
+    document_name: 'Requerimento de Dispensa de Educação Física',
+    is_required: false,
+    is_delivered: false,
+    required_for_enrollment: false,
+    category: 'other',
+    approved_by_admin: false
+  },
+  {
+    document_type: 'reservista',
+    document_name: 'Reservista',
     is_required: false,
     is_delivered: false,
     required_for_enrollment: false,

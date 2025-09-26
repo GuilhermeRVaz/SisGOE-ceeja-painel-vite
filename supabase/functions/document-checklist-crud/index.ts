@@ -69,6 +69,11 @@ const calculateStatus = (items: DocumentChecklistItem[]): DocumentChecklistStatu
   };
 };
 
+// Função para normalizar document_type (remove espaços, converte para minúsculo, substitui espaços por underscore)
+const normalizeDocumentType = (documentType: string): string => {
+  return documentType?.trim().toLowerCase().replace(/\s+/g, '_') || '';
+};
+
 serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -163,14 +168,24 @@ serve(async (req) => {
           .eq('id', studentId)
           .single()
 
-        // Buscar documentos padrão dos templates
-        const { data: templates } = await supabaseClient
+        // Buscar documentos padrão dos templates (fonte canônica)
+        const { data: templates, error: templatesError } = await supabaseClient
           .from('document_templates')
           .select('*')
           .eq('is_active', true)
           .order('document_type')
 
-        const defaultItems: DocumentChecklistItem[] = templates?.map((template, index) => ({
+        if (templatesError) {
+          throw new Error(`Erro ao buscar templates: ${templatesError.message}`)
+        }
+
+        if (!templates || templates.length === 0) {
+          throw new Error('Nenhum template de documento encontrado. Verifique se os templates estão cadastrados no banco.')
+        }
+
+        console.log(`📋 Encontrados ${templates.length} templates ativos para criar checklist`)
+
+        const defaultItems: DocumentChecklistItem[] = templates.map((template, index) => ({
           id: `temp_${index}_${Date.now()}`,
           document_type: template.document_type,
           document_name: template.document_name,
@@ -179,7 +194,7 @@ serve(async (req) => {
           required_for_enrollment: template.required_for_enrollment,
           category: template.category,
           approved_by_admin: false
-        })) || []
+        }))
 
         const status = calculateStatus(defaultItems)
 
@@ -286,8 +301,14 @@ serve(async (req) => {
           )
         }
 
+        // Normalizar o document_type para comparação
+        const normalizedDocumentType = normalizeDocumentType(document_type);
+
         const updatedItemsForPatch = existingChecklist.items.map((item: DocumentChecklistItem) => {
-          if (item.document_type === document_type) {
+          // Normalizar o document_type do item para comparação
+          const normalizedItemType = normalizeDocumentType(item.document_type);
+
+          if (normalizedItemType === normalizedDocumentType) {
             const now = new Date().toISOString()
             return {
               ...item,

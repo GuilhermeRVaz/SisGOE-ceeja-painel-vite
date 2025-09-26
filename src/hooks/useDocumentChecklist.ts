@@ -146,6 +146,24 @@ const DEFAULT_REQUIRED_DOCUMENTS: Omit<DocumentChecklistItem, 'id' | 'delivered_
     required_for_enrollment: false,
     category: 'other',
     approved_by_admin: false
+  },
+  {
+    document_type: 'requerimento_dispensa_educacao_fisica',
+    document_name: 'Requerimento de Dispensa de Educação Física',
+    is_required: false,
+    is_delivered: false,
+    required_for_enrollment: false,
+    category: 'other',
+    approved_by_admin: false
+  },
+  {
+    document_type: 'reservista',
+    document_name: 'Reservista',
+    is_required: false,
+    is_delivered: false,
+    required_for_enrollment: false,
+    category: 'other',
+    approved_by_admin: false
   }
 ];
 
@@ -189,6 +207,11 @@ const sanitizeChecklistData = (checklist: StudentDocumentChecklist): StudentDocu
     })),
     updated_at: new Date().toISOString()
   };
+};
+
+// Função para normalizar document_type (remove espaços, converte para minúsculo, substitui espaços por underscore)
+const normalizeDocumentType = (documentType: string): string => {
+  return documentType?.trim().toLowerCase().replace(/\s+/g, '_') || '';
 };
 
 interface UseDocumentChecklistReturn {
@@ -296,10 +319,67 @@ export const useDocumentChecklist = (studentId: string | null): UseDocumentCheck
 
             const enrollmentId = studentData[0].enrollment_id;
 
-            // Criar checklist inicial com documentos padrão
-            const initialItems = DEFAULT_REQUIRED_DOCUMENTS.map((doc, index) => ({
+            // Buscar templates ativos do backend (fonte canônica)
+            console.log('🔍 Buscando templates do backend para criar checklist...');
+            const { data: templates, error: templatesError } = await dataProvider.getList('document_templates', {
+                filter: { is_active: true },
+                pagination: { page: 1, perPage: 100 },
+                sort: { field: 'document_type', order: 'ASC' }
+            });
+
+            if (templatesError) {
+                console.error('❌ Erro ao buscar templates:', templatesError);
+                throw new Error(`Erro ao buscar templates: ${templatesError.message}`);
+            }
+
+            if (!templates || templates.length === 0) {
+                console.warn('⚠️ Nenhum template encontrado, usando lista local como fallback');
+                // Fallback para DEFAULT_REQUIRED_DOCUMENTS se não houver templates
+                const initialItems = DEFAULT_REQUIRED_DOCUMENTS.map((doc, index) => ({
+                    id: `temp_${index}_${Date.now()}`,
+                    ...doc
+                }));
+                const status = calculateStatus(initialItems);
+
+                const newChecklist: Omit<StudentDocumentChecklist, 'id'> = {
+                    student_id: studentId,
+                    enrollment_id: enrollmentId,
+                    items: initialItems,
+                    status_summary: status,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+
+                const { data, error } = await dataProvider.create('student_document_checklist', {
+                    data: newChecklist
+                });
+
+                if (error) {
+                    if (error.message && error.message.includes('duplicate key')) {
+                        console.log('🔄 Checklist já existe, buscando existente...');
+                        await fetchChecklist();
+                        return;
+                    }
+                    throw error;
+                }
+
+                setChecklist(data);
+                notify('Checklist de documentos criado com sucesso (fallback local)', { type: 'success' });
+                return;
+            }
+
+            console.log(`✅ Encontrados ${templates.length} templates ativos`);
+
+            // Criar checklist inicial com templates do backend
+            const initialItems = templates.map((template: any, index: number) => ({
                 id: `temp_${index}_${Date.now()}`,
-                ...doc
+                document_type: template.document_type,
+                document_name: template.document_name,
+                is_required: template.is_required,
+                is_delivered: false,
+                required_for_enrollment: template.required_for_enrollment,
+                category: template.category,
+                approved_by_admin: false
             }));
 
             const status = calculateStatus(initialItems);
@@ -367,8 +447,14 @@ export const useDocumentChecklist = (studentId: string | null): UseDocumentCheck
                 return;
             }
 
+            // Normalizar o documentType para comparação
+            const normalizedDocumentType = normalizeDocumentType(documentType);
+
             const updatedItems = checklist.items.map(item => {
-                if (item.document_type === documentType) {
+                // Normalizar o document_type do item para comparação
+                const normalizedItemType = normalizeDocumentType(item.document_type);
+
+                if (normalizedItemType === normalizedDocumentType) {
                     const now = new Date().toISOString();
                     return {
                         ...item,
@@ -425,12 +511,14 @@ export const useDocumentChecklist = (studentId: string | null): UseDocumentCheck
 
     // Função para aprovar documento
     const approveDocument = useCallback(async (documentType: string, adminNotes?: string) => {
-        await updateDocumentStatus(documentType, true, true, adminNotes || 'Documento aprovado');
+        const normalizedDocumentType = normalizeDocumentType(documentType);
+        await updateDocumentStatus(normalizedDocumentType, true, true, adminNotes || 'Documento aprovado');
     }, [updateDocumentStatus]);
 
     // Função para rejeitar documento
     const rejectDocument = useCallback(async (documentType: string, adminNotes?: string) => {
-        await updateDocumentStatus(documentType, true, false, adminNotes || 'Documento rejeitado - verificar');
+        const normalizedDocumentType = normalizeDocumentType(documentType);
+        await updateDocumentStatus(normalizedDocumentType, true, false, adminNotes || 'Documento rejeitado - verificar');
     }, [updateDocumentStatus]);
 
     // Função para aprovar todos os documentos pendentes

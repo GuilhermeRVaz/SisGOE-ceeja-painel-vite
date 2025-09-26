@@ -1,7 +1,7 @@
 // Teste da funcionalidade de mapeamento de documentos entregues
 // Este arquivo simula a execução da função processDocumentChecklistFields
 
-// Dados de exemplo baseados no JSON fornecido pelo usuário (incluindo os novos documentos)
+// Dados de exemplo baseados no JSON fornecido pelo usuário
 const mockDocumentChecklistData = {
   items: [
     {
@@ -143,36 +143,11 @@ const mockDocumentChecklistData = {
       "document_type": "outros",
       "approved_by_admin": true,
       "required_for_enrollment": false
-    },
-    // NOVOS DOCUMENTOS ADICIONADOS
-    {
-      "id": "temp_12_1758811259641",
-      "category": "schooling",
-      "admin_notes": "Documento de dispensa aprovado",
-      "is_required": false,
-      "delivered_at": "2025-09-25T15:20:00.000Z",
-      "is_delivered": true,
-      "document_name": "Requerimento de Dispensa de Educação Física",
-      "document_type": "requerimento_dispensa_educacao_fisica",
-      "approved_by_admin": true,
-      "required_for_enrollment": false
-    },
-    {
-      "id": "temp_13_1758811259641",
-      "category": "other",
-      "admin_notes": "Documento militar obrigatório",
-      "is_required": false,
-      "delivered_at": "2025-09-25T15:21:00.000Z",
-      "is_delivered": true,
-      "document_name": "Reservista",
-      "document_type": "reservista",
-      "approved_by_admin": true,
-      "required_for_enrollment": false
     }
   ]
 };
 
-// Mapeamento de células (copiado da implementação - incluindo os novos documentos)
+// Mapeamento de células (copiado da implementação)
 const documentChecklistCellMapping = {
   'rg': 'A40',                                    // RG (Carteira de Identidade)
   'cpf': 'A41',                                   // CPF
@@ -184,8 +159,6 @@ const documentChecklistCellMapping = {
   'tit_eleitor': 'I42',                           // Título de Eleitor
   'carteira_vacinacao_covid': 'M40',              // Carteira de Vacinação COVID
   'atestado_eliminacao_disciplina': 'M41',        // Atestado de Eliminação de Disciplina
-  'reservista': 'I41',                            // Reservista
-  'requerimento_dispensa_educacao_fisica': 'A43', // Requerimento de Dispensa de Educação Física
   'declaracao_transferencia': 'M42',              // Declaração de Transferência
   'outros': 'D43'                                 // Outros Documentos
 };
